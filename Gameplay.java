@@ -1,6 +1,7 @@
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.ArrayList;
 
 public class Gameplay extends JPanel implements KeyListener, Runnable {
     private boolean play = false;
@@ -9,15 +10,22 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
     private int level = 1;
     private int totalBricks;
     private int playerX = 310;
-    private int ballPosX = 120;
-    private int ballPosY = 350;
-    private int ballXDir = -1;
-    private int ballYDir = -2;
     private int ballSpeed = 8;
+    private int paddleSpeed = 20;
 
     private MainContainer container;
     private MapGenerator map;
     private String playerName;
+    private DatabaseManager dbManager = new DatabaseManager();
+    private ArrayList<Ball> balls = new ArrayList<>();
+
+    // Power-up variables
+    private ArrayList<PowerUp> powerUps = new ArrayList<>();
+    private boolean extendPaddleActive = false;
+    private boolean doubleScoreActive = false;
+    boolean quickPaddleActive = false;
+    private long powerUpTimer = 0;
+    private String powerUpMessage = "";
 
     public Gameplay(MainContainer container, String playerName) {
         this.container = container;
@@ -27,6 +35,9 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
         addKeyListener(this);
         setFocusable(true);
         setFocusTraversalKeysEnabled(false);
+
+        // Add the first ball to the game
+        balls.add(new Ball(120, 350, -1, -2));
 
         Thread gameThread = new Thread(this);
         gameThread.start();
@@ -58,12 +69,32 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
         g.drawString("Player: " + playerName, 300, 30);
 
         // Paddle
+        int paddleWidth = extendPaddleActive ? 150 : 100;
         g.setColor(Color.green);
-        g.fillRect(playerX, 550, 100, 8);
+        g.fillRect(playerX, 550, paddleWidth, 8);
 
-        // Ball
+        // Balls
         g.setColor(Color.yellow);
-        g.fillOval(ballPosX, ballPosY, 20, 20);
+        for (Ball ball : balls) {
+            g.fillOval(ball.getX(), ball.getY(), 20, 20);
+        }
+
+        // Power-Ups
+        for (PowerUp powerUp : powerUps) {
+            powerUp.draw(g);
+        }
+
+        // Draw the power-up activation message if available
+        if (!powerUpMessage.isEmpty()) {
+            g.setColor(Color.cyan);
+            g.setFont(new Font("serif", Font.BOLD, 20));
+            g.drawString(powerUpMessage, 230, 300);  // Adjust position as needed
+
+        // Optionally, clear the message after a few seconds (e.g., 2 seconds)
+        if (System.currentTimeMillis() - powerUpTimer > 1500) {
+            powerUpMessage = "";  // Clear the message
+        }
+    }
 
         // Level Complete Notification
         if (levelComplete) {
@@ -76,11 +107,9 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
             return; // Jangan lanjutkan rendering jika level selesai
         }
 
-        // Win/Lose Message
-        if (ballPosY > 560) {
+        // Game Over
+        if (balls.isEmpty()) {
             play = false;
-            ballXDir = 0;
-            ballYDir = 0;
             g.setColor(Color.red);
             g.setFont(new Font("serif", Font.BOLD, 30));
             g.drawString("Game Over, Score: " + score, 190, 300);
@@ -101,20 +130,20 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
     private void startNextLevel() {
         levelComplete = false; // Reset status level selesai
         level++;
-        ballSpeed -= 1;
-        ballSpeed = Math.max(ballSpeed, 4);
-
-        ballPosX = 120;
-        ballPosY = 350;
-        ballXDir = -1;
-        ballYDir = -2;
+        ballSpeed = Math.max(ballSpeed - 1, 4); // Kurangi kecepatan bola, batas minimal
+    
+        // Reset posisi bola dan paddle
+        balls.clear();
+        balls.add(new Ball(120, 350, -1, -2)); // Tambahkan bola baru
         playerX = 310;
-
+    
+        // Tambah kesulitan dengan lebih banyak brick
         int rows = 3 + level;
         int cols = 7 + level;
         map = new MapGenerator(rows, cols);
         totalBricks = rows * cols;
 
+        deactivatePowerUp();
         play = true;
         repaint();
     }
@@ -123,53 +152,85 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
     public void run() {
         while (true) {
             if (play) {
-                if (new Rectangle(ballPosX, ballPosY, 20, 20).intersects(new Rectangle(playerX, 550, 100, 8))) {
-                    ballYDir = -ballYDir;
-                }
+                ArrayList<Ball> ballsToRemove = new ArrayList<>();
 
-                A: for (int i = 0; i < map.map.length; i++) {
-                    for (int j = 0; j < map.map[0].length; j++) {
-                        if (map.map[i][j] > 0) {
-                            int brickX = j * map.brickWidth + 80;
-                            int brickY = i * map.brickHeight + 50;
-                            int brickWidth = map.brickWidth;
-                            int brickHeight = map.brickHeight;
+                for (Ball ball : balls) {
+                    // Ball and paddle collision
+                    if (new Rectangle(ball.getX(), ball.getY(), 20, 20).intersects(new Rectangle(playerX, 550, extendPaddleActive ? 150 : 100, 8))) {
+                        ball.reverseYDir();
+                    }
 
-                            Rectangle rect = new Rectangle(brickX, brickY, brickWidth, brickHeight);
-                            Rectangle ballRect = new Rectangle(ballPosX, ballPosY, 20, 20);
-                            Rectangle brickRect = rect;
+                    // Ball and brick collision
+                    A: for (int i = 0; i < map.map.length; i++) {
+                        for (int j = 0; j < map.map[0].length; j++) {
+                            if (map.map[i][j] > 0) {
+                                int brickX = j * map.brickWidth + 80;
+                                int brickY = i * map.brickHeight + 50;
+                                int brickWidth = map.brickWidth;
+                                int brickHeight = map.brickHeight;
 
-                            if (ballRect.intersects(brickRect)) {
-                                map.setBrickValue(0, i, j);
-                                totalBricks--;
-                                score += 5;
+                                Rectangle rect = new Rectangle(brickX, brickY, brickWidth, brickHeight);
+                                Rectangle ballRect = new Rectangle(ball.getX(), ball.getY(), 20, 20);
+                                Rectangle brickRect = rect;
 
-                                if (ballPosX + 19 <= brickRect.x || ballPosX + 1 >= brickRect.x + brickRect.width) {
-                                    ballXDir = -ballXDir;
-                                } else {
-                                    ballYDir = -ballYDir;
+                                if (ballRect.intersects(brickRect)) {
+                                    map.setBrickValue(0, i, j);
+                                    totalBricks--;
+                                    score += doubleScoreActive ? 10 : 5;
+
+                                    if (ball.getX() + 19 <= brickRect.x || ball.getX() + 1 >= brickRect.x + brickRect.width) {
+                                        ball.reverseXDir();
+                                    } else {
+                                        ball.reverseYDir();
+                                    }
+
+                                    // Drop power-up
+                                    if (Math.random() < 0.2) {
+                                        String[] powerUpTypes = {"multiBall", "extendPaddle", "doubleScore", "quickPaddle"};
+                                        String type = powerUpTypes[(int) (Math.random() * powerUpTypes.length)];
+                                        powerUps.add(new PowerUp(brickX + brickWidth / 2 - 10, brickY, type));
+                                    }
+                                    break A;
                                 }
-                                break A;
                             }
                         }
+                    }
+
+                    // Move the ball
+                    ball.move();
+
+                    // Remove ball if it goes out of bounds
+                    if (ball.getY() > 600) {
+                        ballsToRemove.add(ball);
+                    }
+                }
+
+                balls.removeAll(ballsToRemove);
+
+                if (System.currentTimeMillis() - powerUpTimer > 5000) {
+                    extendPaddleActive = false;
+                    doubleScoreActive = false;
+                    quickPaddleActive = false;
+                    paddleSpeed = 20;
+                }
+
+                // Power-ups logic
+                for (int i = 0; i < powerUps.size(); i++) {
+                    PowerUp powerUp = powerUps.get(i);
+                    powerUp.move();
+
+                    if (powerUp.getBounds().intersects(new Rectangle(playerX, 550, extendPaddleActive ? 150 : 100, 8))) {
+                        activatePowerUp(powerUp.getType());
+                        powerUps.remove(i);
+                        i--;
+                    } else if (powerUp.getBounds().y > 600) {
+                        powerUps.remove(i);
+                        i--;
                     }
                 }
 
                 if (totalBricks <= 0 && !levelComplete) {
                     levelUp();
-                }
-
-                ballPosX += ballXDir;
-                ballPosY += ballYDir;
-
-                if (ballPosX < 0) {
-                    ballXDir = -ballXDir;
-                }
-                if (ballPosY < 0) {
-                    ballYDir = -ballYDir;
-                }
-                if (ballPosX > 670) {
-                    ballXDir = -ballXDir;
                 }
             }
 
@@ -181,6 +242,41 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
                 e.printStackTrace();
             }
         }
+    }
+
+    private void activatePowerUp(String type) {
+        powerUpTimer = System.currentTimeMillis();
+        switch (type) {
+            case "multiBall":
+                // Gandakan bola dengan arah yang berbeda
+                ArrayList<Ball> newBalls = new ArrayList<>();
+                for (Ball ball : balls) {
+                    // Membuat bola baru dengan arah yang berbeda
+                    Ball newBall = new Ball(ball.getX(), ball.getY(), -ball.getXDir(), -ball.getYDir());
+                    newBalls.add(newBall);
+                }
+                balls.addAll(newBalls); // Tambahkan semua bola baru ke daftar bola
+                break;
+            case "extendPaddle":
+                extendPaddleActive = true;
+                break;
+            case "doubleScore":
+                doubleScoreActive = true;
+                break;
+            case "quickPaddle":
+                quickPaddleActive = true;
+                paddleSpeed = 40;
+        }
+        // Store the message to display it on screen
+        powerUpMessage = type + " activated!";
+    }
+
+    private void deactivatePowerUp() {
+        extendPaddleActive = false;
+        doubleScoreActive = false;
+        quickPaddleActive = false;
+        paddleSpeed = 20;
+        powerUpTimer = 0;
     }
 
     @Override
@@ -206,32 +302,55 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
                 resetGame();
             }
         }
+        if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+            boolean allBallsLost = true;
+            for (Ball ball : balls) {
+                if (ball.getY() <= 560) {
+                    allBallsLost = false; // Masih ada bola yang aktif
+                    break;
+                }
+            }
+        
+            if (allBallsLost) {
+                dbManager.savePlayerData(playerName, score, level);
+                container.showCard("MainMenu");
+            }
+        }
     }
 
     private void resetGame() {
         play = true;
-        ballPosX = 120;
-        ballPosY = 350;
-        ballXDir = -1;
-        ballYDir = -2;
+    
+        // Reset daftar bola
+        balls.clear();
+        balls.add(new Ball(120, 350, -1, -2)); // Tambahkan bola awal
+    
+        // Reset posisi paddle
         playerX = 310;
+    
+        // Reset atribut permainan
         score = 0;
         level = 1;
         ballSpeed = 8;
+    
+        // Reset peta brick
         map = new MapGenerator(3, 7);
         totalBricks = 3 * 7;
-
+    
+        // Hapus semua power-up
+        deactivatePowerUp();
+    
         repaint();
     }
-
+    
     public void moveRight() {
         play = true;
-        playerX += 20;
+        playerX += paddleSpeed;
     }
 
     public void moveLeft() {
         play = true;
-        playerX -= 20;
+        playerX -= paddleSpeed;
     }
 
     @Override

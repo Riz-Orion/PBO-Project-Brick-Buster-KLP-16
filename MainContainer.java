@@ -32,6 +32,19 @@ public class MainContainer extends JPanel {
             leaderboard.fetchLeaderboardData();
         }
         cardLayout.show(this, name);
+
+        Component currentPanel = null;
+
+        for (Component comp : getComponents()) {
+            if (comp.isVisible()) {
+                currentPanel = comp;
+                break;
+            }
+        }
+    
+        if (currentPanel instanceof JPanel) {
+            ((JPanel) currentPanel).requestFocusInWindow();
+        }
     }
 
     public void setGamePanel(Gameplay newGamePanel) {
