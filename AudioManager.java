@@ -1,14 +1,13 @@
 import javax.sound.sampled.*;
 import java.io.File;
 
-public class AudioManager {
+public class AudioManager implements AudioPlayer {
     private static AudioManager instance;
     private Clip bgmClip;
     private Clip soundEffectClip;
 
     private AudioManager() {}
 
-    // Static method to get the single instance of AudioManager
     public static AudioManager getInstance() {
         if (instance == null) {
             instance = new AudioManager();
@@ -16,10 +15,10 @@ public class AudioManager {
         return instance;
     }
 
-    // Method untuk memutar BGM
+    @Override
     public void playBGM(String filePath, boolean loop) {
         try {
-            stopBGM(); // Stop BGM sebelumnya jika ada
+            stopBGM(); // Stop previous BGM
             File audioFile = new File(filePath);
             AudioInputStream audioStream = AudioSystem.getAudioInputStream(audioFile);
             bgmClip = AudioSystem.getClip();
@@ -34,7 +33,7 @@ public class AudioManager {
         }
     }
 
-    // Method untuk menghentikan BGM
+    @Override
     public void stopBGM() {
         if (bgmClip != null && bgmClip.isRunning()) {
             bgmClip.stop();
@@ -42,12 +41,7 @@ public class AudioManager {
         }
     }
 
-    public void restartBGM(String filePath, boolean loop) {
-        stopBGM(); // Hentikan BGM jika ada
-        playBGM(filePath, loop); // Putar ulang BGM
-    }    
-
-    // Method untuk memutar efek suara
+    @Override
     public void playSoundEffect(String filePath) {
         try {
             File audioFile = new File(filePath);
