@@ -64,6 +64,10 @@ Thread juga digunakan untuk mengatur durasi power-up. Ketika power-up diaktifkan
 
 Saat semua brick di level tertentu dihancurkan, Thread digunakan untuk menunggu hingga pemain menekan tombol _Enter_ untuk melanjutkan ke level berikutnya.
 
+### 4. Background Music (BGM) dan Sound Effect
+
+Multithreading juga digunakan untuk menangani _background music_ (BGM) dan efek suara sehingga audio dapat diputar bersamaan dengan permainan tanpa mengganggu mekanisme inti permainan.
+
 ## Komponen Antarmuka Pengguna
 
 ### 1. MainMenu
