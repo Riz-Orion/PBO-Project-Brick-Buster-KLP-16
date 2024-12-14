@@ -229,7 +229,7 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
                                     if (Math.random() < 0.2) {
                                         String[] powerUpTypes = {"multiBall", "extendPaddle", "doubleScore", "quickPaddle"};
                                         String type = powerUpTypes[(int) (Math.random() * powerUpTypes.length)];
-                                        powerUps.add(new PowerUp(brickX + brickWidth / 2 - 10, brickY, type));
+                                        powerUps.add(new PowerUpItem(brickX + brickWidth / 2 - 10, brickY, type));
                                     }
                                     break A;
                                 }
@@ -357,7 +357,7 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
         
             if (allBallsLost) {
                 container.showCard("MainMenu");
-                audioManager.restartBGM("assets/Sound/menu_bgm.wav", true);
+                audioManager.playBGM("assets/Sound/menu_bgm.wav", true);
             }
         }
     }
@@ -390,7 +390,7 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
         deactivatePowerUp();
     
         // Mainkan BGM
-        audioManager.restartBGM("assets/Sound/gameplay_bgm.wav", true);
+        audioManager.playBGM("assets/Sound/gameplay_bgm.wav", true);
     
         repaint();
     }
