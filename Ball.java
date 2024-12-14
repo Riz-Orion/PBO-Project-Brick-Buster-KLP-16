@@ -36,6 +36,10 @@ public class Ball {
         return y;
     }
 
+    public void setY (int y) {
+        this.y = y;
+    }
+
     public int getXDir() {
         return xDir;
     }

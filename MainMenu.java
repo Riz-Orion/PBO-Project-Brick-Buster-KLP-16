@@ -9,9 +9,11 @@ public class MainMenu extends JPanel implements KeyListener {
     private Image[] resizedIcons;
     private Image backgroundImage;
     private Image resizedBackground;
+    private AudioManager audioManager;
 
-    public MainMenu(MainContainer container) {
+    public MainMenu(MainContainer container, AudioManager audioManager) {
         this.container = container;
+        this.audioManager = AudioManager.getInstance();
 
         // Load and resize icons
         String[] iconPaths = {"assets/play2.png", "assets/podium.png", "assets/info.png"};
@@ -115,8 +117,10 @@ public class MainMenu extends JPanel implements KeyListener {
                 );
 
                 if (playerName != null && !playerName.trim().isEmpty()) {
-                    Gameplay newGamePanel = new Gameplay(container, playerName.trim());
+                    Gameplay newGamePanel = new Gameplay(container, playerName.trim(), audioManager);
                     container.setGamePanel(newGamePanel);
+                    audioManager.stopBGM();
+                    audioManager.playBGM("assets/Sound/gameplay_bgm.wav", true);
                     container.showCard("Game");
                 } else {
                     JOptionPane.showMessageDialog(

@@ -18,6 +18,8 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
     private String playerName;
     private DatabaseManager dbManager = new DatabaseManager();
     private ArrayList<Ball> balls = new ArrayList<>();
+    private AudioManager audioManager;
+    private Image backgroundImage;
 
     // Power-up variables
     private ArrayList<PowerUp> powerUps = new ArrayList<>();
@@ -26,10 +28,21 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
     boolean quickPaddleActive = false;
     private long powerUpTimer = 0;
     private String powerUpMessage = "";
+    private boolean gameOverSoundPlayed = false;
 
-    public Gameplay(MainContainer container, String playerName) {
+    public Gameplay(MainContainer container, String playerName, AudioManager audioManager) {
         this.container = container;
         this.playerName = playerName;
+        this.audioManager = audioManager;
+
+        try {
+            backgroundImage = new ImageIcon("assets/game_background.png").getImage();
+        } catch (Exception e) {
+            System.out.println("Background image not found!");
+            e.printStackTrace();
+        }
+        
+
         map = new MapGenerator(3, 7);
         totalBricks = 3 * 7;
         addKeyListener(this);
@@ -44,9 +57,10 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
     }
 
     public void paint(Graphics g) {
-        // Background
-        g.setColor(new Color(139, 69, 19));
-        g.fillRect(1, 1, 692, 592);
+        // Gambar background
+        if (backgroundImage != null) {
+            g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
+        }
 
         // Drawing map
         map.draw((Graphics2D) g);
@@ -110,6 +124,14 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
         // Game Over
         if (balls.isEmpty()) {
             play = false;
+            
+            if (!gameOverSoundPlayed) {
+                dbManager.savePlayerData(playerName, score, level);
+                audioManager.stopBGM();
+                audioManager.playSoundEffect("assets/Sound/game_over.wav"); // Putar suara
+                gameOverSoundPlayed = true; // Set flag agar tidak diputar lagi
+            }
+
             g.setColor(Color.red);
             g.setFont(new Font("serif", Font.BOLD, 30));
             g.drawString("Game Over, Score: " + score, 190, 300);
@@ -124,6 +146,9 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
     private void levelUp() {
         levelComplete = true; // Tandai bahwa level selesai
         play = false;
+
+        // Mainkan efek suara saat level selesai
+        audioManager.playSoundEffect("assets/Sound/level_complete.wav");
         repaint();
     }
 
@@ -143,6 +168,7 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
         map = new MapGenerator(rows, cols);
         totalBricks = rows * cols;
 
+        powerUps.clear();
         deactivatePowerUp();
         play = true;
         repaint();
@@ -155,9 +181,22 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
                 ArrayList<Ball> ballsToRemove = new ArrayList<>();
 
                 for (Ball ball : balls) {
-                    // Ball and paddle collision
-                    if (new Rectangle(ball.getX(), ball.getY(), 20, 20).intersects(new Rectangle(playerX, 550, extendPaddleActive ? 150 : 100, 8))) {
+                    // Deteksi tabrakan dengan dinding
+                    if (ball.getX() <= 0 || ball.getX() >= 670) { // Dinding kiri atau kanan
+                        ball.reverseXDir();
+                        AudioManager.getInstance().playSoundEffect("assets/Sound/ball_bounce.wav");
+                    }
+                    if (ball.getY() <= 0) { // Dinding atas
                         ball.reverseYDir();
+                        AudioManager.getInstance().playSoundEffect("assets/Sound/ball_bounce.wav");
+                    }
+    
+                    // Deteksi tabrakan dengan paddle
+                    if (new Rectangle(ball.getX(), ball.getY(), 20, 20).intersects(
+                            new Rectangle(playerX, 550, extendPaddleActive ? 150 : 100, 8))) {
+                        ball.reverseYDir();
+                        ball.setY(550 - 20); 
+                        AudioManager.getInstance().playSoundEffect("assets/Sound/ball_bounce.wav");
                     }
 
                     // Ball and brick collision
@@ -183,6 +222,8 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
                                     } else {
                                         ball.reverseYDir();
                                     }
+
+                                    audioManager.playSoundEffect("assets/Sound/hit_brick.wav");
 
                                     // Drop power-up
                                     if (Math.random() < 0.2) {
@@ -223,6 +264,9 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
                         activatePowerUp(powerUp.getType());
                         powerUps.remove(i);
                         i--;
+
+                        // Mainkan efek suara saat power-up diambil
+                        audioManager.playSoundEffect("assets/Sound/collect_power.wav");
                     } else if (powerUp.getBounds().y > 600) {
                         powerUps.remove(i);
                         i--;
@@ -299,7 +343,7 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
             if (levelComplete) {
                 startNextLevel();
             } else if (!play) {
-                resetGame();
+                resetGame(true);
             }
         }
         if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
@@ -312,14 +356,15 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
             }
         
             if (allBallsLost) {
-                dbManager.savePlayerData(playerName, score, level);
                 container.showCard("MainMenu");
+                audioManager.restartBGM("assets/Sound/menu_bgm.wav", true);
             }
         }
     }
 
-    private void resetGame() {
+    private void resetGame(boolean resetPlayerData) {
         play = true;
+        gameOverSoundPlayed = false;
     
         // Reset daftar bola
         balls.clear();
@@ -328,9 +373,12 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
         // Reset posisi paddle
         playerX = 310;
     
-        // Reset atribut permainan
-        score = 0;
-        level = 1;
+        // Reset atribut permainan berdasarkan parameter
+        if (resetPlayerData) {
+            score = 0;
+            level = 1;
+        }
+    
         ballSpeed = 8;
     
         // Reset peta brick
@@ -338,10 +386,15 @@ public class Gameplay extends JPanel implements KeyListener, Runnable {
         totalBricks = 3 * 7;
     
         // Hapus semua power-up
+        powerUps.clear();
         deactivatePowerUp();
+    
+        // Mainkan BGM
+        audioManager.restartBGM("assets/Sound/gameplay_bgm.wav", true);
     
         repaint();
     }
+    
     
     public void moveRight() {
         play = true;

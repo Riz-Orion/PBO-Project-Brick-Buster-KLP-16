@@ -7,14 +7,18 @@ public class MainContainer extends JPanel {
     private Gameplay gamePanel;
     private Leaderboard leaderboard;
     private About about;
+    private AudioManager audioManager;
 
     public MainContainer() {
         cardLayout = new CardLayout();
         setLayout(cardLayout);
 
+        // Inisialisasi AudioManager
+        audioManager = AudioManager.getInstance();
+
         // Create all panels
-        mainMenu = new MainMenu(this);
-        gamePanel = new Gameplay(this, "Default Player");
+        mainMenu = new MainMenu(this, audioManager);
+        gamePanel = new Gameplay(this, "Default Player", audioManager);
         leaderboard = new Leaderboard(this);
         about = new About(this);
 
@@ -23,6 +27,9 @@ public class MainContainer extends JPanel {
         add(gamePanel, "Game");
         add(leaderboard, "Leaderboard");
         add(about, "About");
+
+        // Play main menu BGM
+        audioManager.playBGM("assets/Sound/menu_bgm.wav", true);
 
         cardLayout.show(this, "MainMenu");
     }
