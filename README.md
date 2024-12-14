@@ -1,10 +1,10 @@
 # PBO-Project-Brick-Buster-KLP-16
 
-### Penerapan GUI dan Multithreading dalam Aplikasi Brick Buster
+### Penerapan Polymorphism, Abstract Class, Interface, GUI, dan Multithreading dalam Aplikasi Brick Buster
 
 ## Deskripsi
 
-project ini membahas penerapan komponen GUI (Graphical User Interface) menggunakan Java Swing, serta penggunaan multithreading untuk menjaga permainan tetap responsif dalam aplikasi _Brick Buster_. Aplikasi ini adalah game arkade yang memungkinkan pemain menghancurkan brick menggunakan bola yang dipantulkan oleh paddle, dengan fitur-fitur seperti power-up, leaderboard, dan beberapa level yang semakin menantang. Dokumentasi ini mencakup struktur kode utama, pengaturan tata letak GUI, dan implementasi Thread untuk mendukung gameplay.
+Project ini membahas penerapan Polymorphism seperti overriding, abstract class, interface, komponen GUI (Graphical User Interface) menggunakan Java Swing, serta penggunaan multithreading untuk menjaga permainan tetap responsif dalam aplikasi _Brick Buster_. Aplikasi ini adalah game arkade yang memungkinkan pemain menghancurkan brick menggunakan bola yang dipantulkan oleh paddle, dengan fitur-fitur seperti power-up, leaderboard, dan beberapa level yang semakin menantang. Dokumentasi ini mencakup struktur kode utama, pengaturan tata letak GUI, dan implementasi Thread untuk mendukung gameplay.
 
 ## Struktur Kode Utama
 
