@@ -63,17 +63,31 @@ public class About extends JPanel implements KeyListener {
         String aboutText = """
                 Brick Buster is a modern take on the classic arcade game.
                 You control a paddle to bounce the ball and destroy all the bricks.
-                Featuring power-ups like Multi Ball, Extend Paddle, and Quick Paddle.
+                Featuring power-ups like Multi Ball, Double Score, Extend Paddle, and Quick Paddle.
                 Test your skills, break the bricks, and climb the leaderboard!
                 """;
 
         FontMetrics contentMetrics = g.getFontMetrics();
         int yPosition = 160;
         int lineSpacing = 30;
-        for (String line : aboutText.split("\n")) {
-            int lineWidth = contentMetrics.stringWidth(line.trim());
-            int xPosition = (getWidth() - lineWidth) / 2;
-            g.drawString(line.trim(), xPosition, yPosition);
+        int maxTextWidth = getWidth() - 150;
+                
+        for (String paragraph : aboutText.split("\n")) {
+            String[] words = paragraph.split(" ");
+            StringBuilder line = new StringBuilder();
+            for (String word : words) {
+                String testLine = line + word + " ";
+                if (contentMetrics.stringWidth(testLine) > maxTextWidth) {
+                    int xPosition = (getWidth() - contentMetrics.stringWidth(line.toString())) / 2;
+                    g.drawString(line.toString(), xPosition, yPosition);
+                    yPosition += lineSpacing;
+                    line = new StringBuilder(word + " ");
+                } else {
+                    line.append(word).append(" ");
+                    }
+                }
+            int xPosition = (getWidth() - contentMetrics.stringWidth(line.toString())) / 2;
+            g.drawString(line.toString(), xPosition, yPosition);
             yPosition += lineSpacing;
         }
 
